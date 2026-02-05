@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_ecis_equipment_tree" model="ir.ui.view">
+        <field name="name">ecis.equipment.tree</field>
+        <field name="model">ecis.equipment</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="type_equipement"/>
+                <field name="client_id"/>
+                <field name="prochaine_echeance"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_ecis_equipment_form" model="ir.ui.view">
+        <field name="name">ecis.equipment.form</field>
+        <field name="model">ecis.equipment</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="type_equipement"/>
+                        <field name="client_id"/>
+                        <field name="marque"/>
+                        <field name="modele"/>
+                        <field name="numero_serie"/>
+                        <field name="periodicite"/>
+                        <field name="derniere_inspection"/>
+                        <field name="prochaine_echeance"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_ecis_equipment" model="ir.actions.act_window">
+        <field name="name">Equipment</field>
+        <field name="res_model">ecis.equipment</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+</odoo>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_ecis_root" name="ECIS Inspection" sequence="10"/>
+    <menuitem id="menu_ecis_equipment" name="Equipment" parent="menu_ecis_root" action="action_ecis_equipment" sequence="10"/>
+</odoo>
