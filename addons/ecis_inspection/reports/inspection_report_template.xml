@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="report_inspection_document">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        
+                        <div class="row mb-4">
+                            <div class="col-12 text-center">
+                                <h2>TECHNICAL INSPECTION REPORT</h2>
+                                <h4 class="text-muted">ECIS-DZ Technical Inspection Services</h4>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-6">
+                                <strong>Report Number:</strong> <span t-field="o.name"/><br/>
+                                <strong>Inspection Date:</strong> <span t-field="o.inspection_date"/><br/>
+                                <strong>Inspection Type:</strong> <span t-field="o.inspection_type"/>
+                            </div>
+                            <div class="col-6 text-right">
+                                <strong>Inspector:</strong> <span t-field="o.inspector_id.name"/><br/>
+                                <strong>Duration:</strong> <span t-field="o.inspection_duration"/> hours
+                            </div>
+                        </div>
+                        
+                        <hr/>
+                        
+                        <div class="row mt-4">
+                            <div class="col-6">
+                                <h5>Client Information</h5>
+                                <table class="table table-sm table-borderless">
+                                    <tr>
+                                        <td><strong>Company:</strong></td>
+                                        <td><span t-field="o.client_id.name"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Phone:</strong></td>
+                                        <td><span t-field="o.client_id.phone"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Email:</strong></td>
+                                        <td><span t-field="o.client_id.email"/></td>
+                                    </tr>
+                                </table>
+                            </div>
+                            
+                            <div class="col-6">
+                                <h5>Equipment Information</h5>
+                                <table class="table table-sm table-borderless">
+                                    <tr>
+                                        <td><strong>Equipment:</strong></td>
+                                        <td><span t-field="o.equipment_id.name"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Type:</strong></td>
+                                        <td><span t-field="o.equipment_type"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Brand:</strong></td>
+                                        <td><span t-field="o.equipment_id.brand"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Serial Number:</strong></td>
+                                        <td><span t-field="o.equipment_id.serial_number"/></td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <h5>Inspection Checklist</h5>
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Check Item</th>
+                                            <th>Status</th>
+                                            <th>Notes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <t t-foreach="o.checklist_ids" t-as="item">
+                                            <tr>
+                                                <td><span t-field="item.name"/></td>
+                                                <td>
+                                                    <span t-if="item.status == 'pass'" class="badge badge-success">PASS</span>
+                                                    <span t-if="item.status == 'fail'" class="badge badge-danger">FAIL</span>
+                                                    <span t-if="item.status == 'warning'" class="badge badge-warning">WARNING</span>
+                                                    <span t-if="item.status == 'na'" class="badge badge-secondary">N/A</span>
+                                                </td>
+                                                <td><span t-field="item.notes"/></td>
+                                            </tr>
+                                        </t>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <h5>Overall Assessment</h5>
+                                <div class="alert" t-att-class="'alert-success' if o.overall_result == 'approved' else 'alert-warning' if o.overall_result == 'conditional' else 'alert-danger'">
+                                    <h4>
+                                        <strong>
+                                            <span t-if="o.overall_result == 'approved'">APPROVED</span>
+                                            <span t-if="o.overall_result == 'conditional'">CONDITIONAL</span>
+                                            <span t-if="o.overall_result == 'rejected'">REJECTED</span>
+                                        </strong>
+                                    </h4>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <t t-if="o.defects_found">
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <h6>Defects Found:</h6>
+                                    <p t-field="o.defects_found"/>
+                                </div>
+                            </div>
+                        </t>
+                        
+                        <t t-if="o.recommendations">
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <h6>Recommendations:</h6>
+                                    <p t-field="o.recommendations"/>
+                                </div>
+                            </div>
+                        </t>
+                        
+                        <div class="row mt-5">
+                            <div class="col-6">
+                                <div class="border p-3">
+                                    <h6>Inspector Signature</h6>
+                                    <t t-if="o.inspector_signature">
+                                        <img t-att-src="image_data_uri(o.inspector_signature)" style="max-height: 80px;"/>
+                                    </t>
+                                    <div class="mt-2">
+                                        <strong><span t-field="o.inspector_id.name"/></strong><br/>
+                                        Date: <span t-field="o.inspection_date"/>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-6">
+                                <div class="border p-3">
+                                    <h6>Client Representative</h6>
+                                    <t t-if="o.client_signature">
+                                        <img t-att-src="image_data_uri(o.client_signature)" style="max-height: 80px;"/>
+                                    </t>
+                                    <div class="mt-2">
+                                        <t t-if="o.client_representative">
+                                            <strong><span t-field="o.client_representative"/></strong>
+                                        </t>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>

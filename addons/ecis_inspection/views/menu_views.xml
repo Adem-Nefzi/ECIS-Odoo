@@ -1,5 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <menuitem id="menu_ecis_root" name="ECIS Inspection" sequence="10"/>
-    <menuitem id="menu_ecis_equipment" name="Equipment" parent="menu_ecis_root" action="action_ecis_equipment" sequence="10"/>
+    
+    <!-- Main Menu -->
+    <menuitem id="menu_ecis_inspection_root"
+              name="ECIS Inspection"
+              sequence="5"/>
+    
+    <!-- Equipment Submenu -->
+    <menuitem id="menu_ecis_equipment"
+              name="Equipment"
+              parent="menu_ecis_inspection_root"
+              sequence="5"/>
+    
+    <menuitem id="menu_ecis_equipment_list"
+              name="All Equipment"
+              parent="menu_ecis_equipment"
+              action="action_ecis_equipment"
+              sequence="10"/>
+    
+    <!-- Inspections Submenu -->
+    <menuitem id="menu_ecis_inspections"
+              name="Inspections"
+              parent="menu_ecis_inspection_root"
+              sequence="10"/>
+    
+    <menuitem id="menu_ecis_inspection_list"
+              name="All Inspections"
+              parent="menu_ecis_inspections"
+              action="action_ecis_inspection"
+              sequence="10"/>
+    
+    <!-- Configuration Submenu -->
+    <menuitem id="menu_ecis_configuration"
+              name="Configuration"
+              parent="menu_ecis_inspection_root"
+              sequence="100"/>
+    
+    <menuitem id="menu_ecis_checklist_templates"
+              name="Checklist Templates"
+              parent="menu_ecis_configuration"
+              action="action_checklist_template"
+              sequence="10"/>
+
 </odoo>

@@ -1,0 +1,364 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ==================== TREE VIEW ==================== -->
+    <record id="view_ecis_inspection_tree" model="ir.ui.view">
+        <field name="name">ecis.inspection.tree</field>
+        <field name="model">ecis.inspection</field>
+        <field name="arch" type="xml">
+            <tree string="Inspections" 
+                  decoration-success="state == 'completed' and overall_result == 'approved'"
+                  decoration-warning="state == 'completed' and overall_result == 'conditional'"
+                  decoration-danger="state == 'completed' and overall_result == 'rejected'"
+                  decoration-muted="state == 'cancelled'">
+                
+                <field name="name"/>
+                <field name="inspection_date"/>
+                <field name="equipment_id"/>
+                <field name="client_id"/>
+                <field name="inspection_type"/>
+                <field name="inspector_id"/>
+                <field name="overall_result" 
+                       widget="badge"
+                       decoration-success="overall_result == 'approved'"
+                       decoration-warning="overall_result == 'conditional'"
+                       decoration-danger="overall_result == 'rejected'"/>
+                <field name="state" 
+                       widget="badge"
+                       decoration-info="state == 'draft'"
+                       decoration-primary="state == 'in_progress'"
+                       decoration-success="state in ['completed', 'sent']"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- ==================== FORM VIEW ==================== -->
+    <record id="view_ecis_inspection_form" model="ir.ui.view">
+        <field name="name">ecis.inspection.form</field>
+        <field name="model">ecis.inspection</field>
+        <field name="arch" type="xml">
+            <form string="Inspection Report">
+<header>
+    <button name="action_start_inspection" 
+            string="Start Inspection" 
+            type="object" 
+            class="btn-primary"
+            invisible="state != 'draft'"/>
+    
+    <button name="action_complete_inspection" 
+            string="Complete Inspection" 
+            type="object" 
+            class="btn-primary"
+            invisible="state != 'in_progress'"/>
+    
+    <button name="action_send_to_client" 
+            string="Mark as Sent" 
+            type="object" 
+            class="btn-primary"
+            invisible="state != 'completed'"/>
+
+        <button name="%(action_report_inspection)d"
+            string="Print Report"
+            type="action"
+            class="btn-secondary"
+            invisible="state == 'draft'"/>
+    
+    <button name="action_cancel" 
+            string="Cancel" 
+            type="object" 
+            invisible="state in ['cancelled', 'completed', 'sent']"
+            confirm="Are you sure you want to cancel this inspection?"/>
+    
+    <button name="action_reset_to_draft" 
+            string="Reset to Draft" 
+            type="object" 
+            groups="base.group_system"
+            invisible="state == 'draft'"/>
+    
+    <field name="state" widget="statusbar" 
+           statusbar_visible="draft,in_progress,completed,sent"/>
+</header>
+                
+                <sheet>
+                    <!-- Title -->
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    
+                    <!-- Main Info -->
+                    <group>
+                        <group string="Equipment Information">
+                            <field name="equipment_id" 
+                                   options="{'no_create': True}"
+                                   readonly="state != 'draft'"/>
+                            <field name="client_id" readonly="1"/>
+                            <field name="equipment_type" readonly="1"/>
+                        </group>
+                        
+                        <group string="Inspection Details">
+                            <field name="inspection_date" 
+                                   readonly="state not in ['draft', 'in_progress']"/>
+                            <field name="inspection_type" 
+                                   readonly="state != 'draft'"/>
+                            <field name="inspector_id" 
+                                   readonly="state not in ['draft', 'in_progress']"/>
+                            <field name="inspection_duration" 
+                                   readonly="state not in ['draft', 'in_progress']"/>
+                            <field name="weather_conditions" 
+                                   readonly="state not in ['draft', 'in_progress']"/>
+                        </group>
+                    </group>
+                    
+                    <!-- Notebook -->
+                    <notebook>
+                        <!-- Checklist Tab -->
+                        <page string="Inspection Checklist" name="checklist">
+                            <group>
+                                <group>
+                                    <field name="checklist_total_count"/>
+                                    <field name="checklist_pass_count"/>
+                                </group>
+                                <group>
+                                    <field name="checklist_fail_count"/>
+                                </group>
+                            </group>
+                            
+                            <field name="checklist_ids" 
+                                   readonly="state not in ['draft', 'in_progress']">
+                                <tree editable="bottom" 
+                                      decoration-success="status == 'pass'"
+                                      decoration-danger="status == 'fail'"
+                                      decoration-warning="status == 'warning'"
+                                      decoration-muted="status == 'na'">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="name"/>
+                                    <field name="requirement"/>
+                                    <field name="status" widget="badge"/>
+                                    <field name="notes"/>
+                                </tree>
+                            </field>
+                        </page>
+                        
+                        <!-- Results Tab -->
+                        <page string="Results &amp; Findings" name="results">
+                            <group>
+                                <group string="Overall Assessment">
+                                    <field name="overall_result" 
+                                           widget="radio"
+                                           readonly="state not in ['draft', 'in_progress']"/>
+                                </group>
+                            </group>
+                            
+                            <group>
+                                <field name="defects_found" 
+                                       placeholder="Describe any defects or issues found during inspection..."
+                                       readonly="state not in ['draft', 'in_progress']"/>
+                            </group>
+                            
+                            <group>
+                                <field name="immediate_actions_required" 
+                                       placeholder="List any immediate actions required..."
+                                       readonly="state not in ['draft', 'in_progress']"/>
+                            </group>
+                            
+                            <group>
+                                <field name="recommendations" 
+                                       placeholder="Recommendations for maintenance or improvements..."
+                                       readonly="state not in ['draft', 'in_progress']"/>
+                            </group>
+                            
+                            <group>
+                                <field name="inspector_notes" 
+                                       placeholder="Additional notes from inspector..."
+                                       readonly="state not in ['draft', 'in_progress']"/>
+                            </group>
+                        </page>
+                        
+                        <!-- Next Inspection Tab -->
+                        <page string="Next Inspection" name="next_inspection">
+                            <group>
+                                <group>
+                                    <field name="next_inspection_frequency" 
+                                           readonly="state not in ['draft', 'in_progress']"/>
+                                    <field name="next_inspection_due" 
+                                           readonly="state not in ['draft', 'in_progress']"/>
+                                </group>
+                            </group>
+                        </page>
+                        
+                        <!-- Signatures Tab -->
+                        <page string="Signatures" name="signatures">
+                            <group>
+                                <group string="Inspector Signature">
+                                    <field name="inspector_signature" 
+                                           widget="signature"
+                                           readonly="state not in ['draft', 'in_progress']"/>
+                                </group>
+                                
+                                <group string="Client Signature">
+                                    <field name="client_representative" 
+                                           readonly="state not in ['draft', 'in_progress', 'completed']"/>
+                                    <field name="client_signature" 
+                                           widget="signature"
+                                           readonly="state not in ['draft', 'in_progress', 'completed']"/>
+                                </group>
+                            </group>
+                        </page>
+                        
+                        <!-- Photos Tab -->
+                        <page string="Photos" name="photos">
+                            <field name="photo_ids" 
+                                   widget="many2many_binary"
+                                   readonly="state not in ['draft', 'in_progress']"/>
+                        </page>
+                        
+                        <!-- PDF Report Tab -->
+                    </notebook>
+                </sheet>
+                
+                <!-- Chatter -->
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- ==================== SEARCH VIEW ==================== -->
+    <record id="view_ecis_inspection_search" model="ir.ui.view">
+        <field name="name">ecis.inspection.search</field>
+        <field name="model">ecis.inspection</field>
+        <field name="arch" type="xml">
+            <search string="Search Inspections">
+                <field name="name"/>
+                <field name="equipment_id"/>
+                <field name="client_id"/>
+                <field name="inspector_id"/>
+                
+                <filter string="Draft" name="draft" 
+                        domain="[('state', '=', 'draft')]"/>
+                <filter string="In Progress" name="in_progress" 
+                        domain="[('state', '=', 'in_progress')]"/>
+                <filter string="Completed" name="completed" 
+                        domain="[('state', '=', 'completed')]"/>
+                <filter string="Sent" name="sent" 
+                        domain="[('state', '=', 'sent')]"/>
+                
+                <separator/>
+                
+                <filter string="Approved" name="approved" 
+                        domain="[('overall_result', '=', 'approved')]"/>
+                <filter string="Conditional" name="conditional" 
+                        domain="[('overall_result', '=', 'conditional')]"/>
+                <filter string="Rejected" name="rejected" 
+                        domain="[('overall_result', '=', 'rejected')]"/>
+                
+                <separator/>
+                
+                <filter string="This Month" name="this_month" 
+                        domain="[('inspection_date', '&gt;=', (context_today() - datetime.timedelta(days=30)).strftime('%Y-%m-%d'))]"/>
+                <filter string="This Year" name="this_year" 
+                        domain="[('inspection_date', '&gt;=', (context_today().replace(month=1, day=1)).strftime('%Y-%m-%d'))]"/>
+                
+                <group expand="0" string="Group By">
+                    <filter string="Equipment" name="group_equipment" 
+                            context="{'group_by': 'equipment_id'}"/>
+                    <filter string="Client" name="group_client" 
+                            context="{'group_by': 'client_id'}"/>
+                    <filter string="Inspector" name="group_inspector" 
+                            context="{'group_by': 'inspector_id'}"/>
+                    <filter string="Status" name="group_state" 
+                            context="{'group_by': 'state'}"/>
+                    <filter string="Result" name="group_result" 
+                            context="{'group_by': 'overall_result'}"/>
+                    <filter string="Inspection Date" name="group_date" 
+                            context="{'group_by': 'inspection_date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ==================== CALENDAR VIEW ==================== -->
+    <record id="view_ecis_inspection_calendar" model="ir.ui.view">
+        <field name="name">ecis.inspection.calendar</field>
+        <field name="model">ecis.inspection</field>
+        <field name="arch" type="xml">
+            <calendar string="Inspection Calendar" 
+                      date_start="inspection_date" 
+                      color="inspector_id"
+                      mode="month">
+                <field name="name"/>
+                <field name="equipment_id"/>
+                <field name="client_id"/>
+                <field name="state"/>
+            </calendar>
+        </field>
+    </record>
+
+    <!-- ==================== ACTION ==================== -->
+    <record id="action_ecis_inspection" model="ir.actions.act_window">
+        <field name="name">Inspections</field>
+        <field name="res_model">ecis.inspection</field>
+        <field name="view_mode">tree,form,calendar</field>
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first inspection report
+            </p>
+            <p>
+                Record inspection results, generate PDF reports, and manage equipment compliance.
+            </p>
+        </field>
+    </record>
+
+    <!-- ==================== CHECKLIST TEMPLATE VIEWS ==================== -->
+    <record id="view_checklist_template_tree" model="ir.ui.view">
+        <field name="name">ecis.checklist.template.tree</field>
+        <field name="model">ecis.checklist.template</field>
+        <field name="arch" type="xml">
+            <tree string="Checklist Templates" editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="equipment_type"/>
+                <field name="name"/>
+                <field name="requirement"/>
+                <field name="active" widget="boolean_toggle"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_checklist_template_form" model="ir.ui.view">
+        <field name="name">ecis.checklist.template.form</field>
+        <field name="model">ecis.checklist.template</field>
+        <field name="arch" type="xml">
+            <form string="Checklist Template">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="equipment_type"/>
+                            <field name="sequence"/>
+                        </group>
+                        <group>
+                            <field name="requirement"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="description" placeholder="Detailed description of what to check..."/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_checklist_template" model="ir.actions.act_window">
+        <field name="name">Checklist Templates</field>
+        <field name="res_model">ecis.checklist.template</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+</odoo>

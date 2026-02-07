@@ -1,2 +1,8 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_ecis_equipment,ecis.equipment,model_ecis_equipment,base.group_user,1,1,1,1
+access_ecis_equipment_user,access_ecis_equipment_user,model_ecis_equipment,base.group_user,1,1,1,1
+access_ecis_equipment_system,access_ecis_equipment_system,model_ecis_equipment,base.group_system,1,1,1,1
+access_ecis_inspection_user,access_ecis_inspection_user,model_ecis_inspection,base.group_user,1,1,1,1
+access_ecis_inspection_system,access_ecis_inspection_system,model_ecis_inspection,base.group_system,1,1,1,1
+access_ecis_inspection_checklist_user,access_ecis_inspection_checklist_user,model_ecis_inspection_checklist,base.group_user,1,1,1,1
+access_ecis_checklist_template_user,access_ecis_checklist_template_user,model_ecis_checklist_template,base.group_user,1,1,1,1
+access_ecis_checklist_template_system,access_ecis_checklist_template_system,model_ecis_checklist_template,base.group_system,1,1,1,1
