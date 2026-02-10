@@ -1,8 +1,10 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_ecis_equipment_user,access_ecis_equipment_user,model_ecis_equipment,base.group_user,1,1,1,1
-access_ecis_equipment_system,access_ecis_equipment_system,model_ecis_equipment,base.group_system,1,1,1,1
-access_ecis_inspection_user,access_ecis_inspection_user,model_ecis_inspection,base.group_user,1,1,1,1
-access_ecis_inspection_system,access_ecis_inspection_system,model_ecis_inspection,base.group_system,1,1,1,1
-access_ecis_inspection_checklist_user,access_ecis_inspection_checklist_user,model_ecis_inspection_checklist,base.group_user,1,1,1,1
-access_ecis_checklist_template_user,access_ecis_checklist_template_user,model_ecis_checklist_template,base.group_user,1,1,1,1
-access_ecis_checklist_template_system,access_ecis_checklist_template_system,model_ecis_checklist_template,base.group_system,1,1,1,1
+access_ecis_equipment_user,ecis.equipment.user,model_ecis_equipment,base.group_user,1,1,1,1
+access_ecis_inspection_user,ecis.inspection.user,model_ecis_inspection,base.group_user,1,1,1,1
+access_ecis_inspection_manager,ecis.inspection.manager,model_ecis_inspection,base.group_system,1,1,1,1
+access_ecis_inspection_portal,ecis.inspection.portal,model_ecis_inspection,base.group_portal,1,0,0,0
+access_ecis_inspection_checklist_user,ecis.inspection.checklist.user,model_ecis_inspection_checklist,base.group_user,1,1,1,1
+access_ecis_checklist_template_user,ecis.checklist.template.user,model_ecis_checklist_template,base.group_user,1,1,1,1
+access_ecis_checklist_template_manager,ecis.checklist.template.manager,model_ecis_checklist_template,base.group_system,1,1,1,1
+access_ecis_quote_request_user,ecis.quote.request.user,model_ecis_quote_request,base.group_user,1,1,1,1
+access_ecis_quote_request_public,ecis.quote.request.public,model_ecis_quote_request,base.group_public,1,0,1,0

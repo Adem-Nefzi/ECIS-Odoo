@@ -313,22 +313,86 @@ class EcisInspection(models.Model):
         return self.env.ref('ecis_inspection.action_report_inspection').report_action(self)
     
     def action_send_to_client(self):
-        """Send inspection report to client via email"""
+        """
+        Send inspection report to client via email
+        
+        This method:
+        1. Gets the email template
+        2. Sends email with PDF report attached
+        3. Updates inspection state to 'sent'
+        4. Logs the action in chatter
+        5. Shows success notification to user
+        """
         self.ensure_one()
         
-        # Just update state - email functionality can be added later
-        self.write({'state': 'sent'})
-        self.message_post(body=_('Inspection marked as sent to client.'))
-        
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'title': _('Success'),
-                'message': _('Inspection marked as sent. Use Print button to generate PDF.'),
-                'type': 'success',
+        # Check if client has email
+        if not self.client_id.email:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('No Email Address'),
+                    'message': _('Client %s does not have an email address configured.') % self.client_id.name,
+                    'type': 'warning',
+                    'sticky': True,
+                }
             }
-        }
+        
+        # Get the email template
+        template = self.env.ref('ecis_inspection.email_template_inspection_completed', raise_if_not_found=False)
+        
+        if not template:
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Template Not Found'),
+                    'message': _('Email template is not configured. Please contact system administrator.'),
+                    'type': 'danger',
+                    'sticky': True,
+                }
+            }
+        
+        try:
+            # Send the email (with PDF attached automatically)
+            template.send_mail(self.id, force_send=True)
+            
+            # Update state to 'sent'
+            self.write({'state': 'sent'})
+            
+            # Log in chatter
+            self.message_post(
+                body=_('Inspection report sent to client via email: %s') % self.client_id.email,
+                subject=_('Report Sent')
+            )
+            
+            # Show success notification
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Email Sent Successfully'),
+                    'message': _('Inspection report has been sent to %s (%s)') % (
+                        self.client_id.name, 
+                        self.client_id.email
+                    ),
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
+            
+        except Exception as e:
+            # If email fails, show error but don't crash
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Email Failed'),
+                    'message': _('Could not send email: %s') % str(e),
+                    'type': 'danger',
+                    'sticky': True,
+                }
+            }
     
     def action_cancel(self):
         """Cancel the inspection"""
