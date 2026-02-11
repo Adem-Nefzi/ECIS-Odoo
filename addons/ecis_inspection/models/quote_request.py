@@ -60,7 +60,6 @@ class EcisQuoteRequest(models.Model):
         ('lifting_platform', 'Lifting Platform'),
         ('other', 'Other')
     ], string='Equipment Type', required=True, tracking=True)
-    
     equipment_count = fields.Integer(
         string='Number of Equipment',
         default=1,

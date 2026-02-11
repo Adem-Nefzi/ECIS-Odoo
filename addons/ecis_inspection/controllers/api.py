@@ -1,5 +1,6 @@
 import base64
 import json
+from datetime import date, datetime
 
 from odoo import http, fields
 from odoo.exceptions import ValidationError, UserError
@@ -10,11 +11,18 @@ class EcisInspectionApiController(http.Controller):
     def _add_cors_headers(self, response):
         response.headers['Access-Control-Allow-Origin'] = '*'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-API-Key'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-API-Key, Accept'
         return response
 
+    def _json_default(self, value):
+        if isinstance(value, (date, datetime)):
+            return value.isoformat()
+        if isinstance(value, bytes):
+            return base64.b64encode(value).decode('ascii')
+        return str(value)
+
     def _json_response(self, payload, status=200):
-        body = json.dumps(payload)
+        body = json.dumps(payload, default=self._json_default)
         response = request.make_response(
             body,
             headers=[('Content-Type', 'application/json')],
@@ -22,11 +30,42 @@ class EcisInspectionApiController(http.Controller):
         )
         return self._add_cors_headers(response)
 
-    def _error_response(self, message, status=400):
-        return self._json_response({'success': False, 'error': message}, status=status)
+    def _error_response(self, message, status=400, details=None):
+        payload = {'success': False, 'error': message}
+        if details is not None:
+            payload['details'] = details
+        return self._json_response(payload, status=status)
 
-    def _get_json_body(self):
-        return request.httprequest.get_json(silent=True) or {}
+    def _get_payload(self):
+        payload = {}
+
+        json_body = request.httprequest.get_json(silent=True)
+        if isinstance(json_body, dict):
+            payload.update(json_body)
+        elif json_body is not None:
+            payload['_raw'] = json_body
+
+        form_data = request.httprequest.form
+        if form_data:
+            payload.update(form_data.to_dict())
+
+        args_data = request.httprequest.args
+        if args_data:
+            payload.update(args_data.to_dict())
+
+        if not payload:
+            raw = request.httprequest.data
+            if raw:
+                try:
+                    parsed = json.loads(raw.decode('utf-8'))
+                    if isinstance(parsed, dict):
+                        payload.update(parsed)
+                    else:
+                        payload['_raw'] = parsed
+                except Exception:
+                    payload['_raw'] = raw.decode('utf-8', 'replace')
+
+        return payload
 
     def _get_api_key(self):
         return request.env['ir.config_parameter'].sudo().get_param('ecis_inspection.api_key')
@@ -55,6 +94,39 @@ class EcisInspectionApiController(http.Controller):
             return int(value)
         except (TypeError, ValueError):
             return default
+
+    def _get_company(self):
+        company = request.env.company
+        if company and company.id:
+            return company
+        return request.env['res.company'].sudo().search([], limit=1)
+
+    def _get_company_required(self):
+        company = self._get_company()
+        if not company:
+            raise ValidationError('No company found to assign records.')
+        return company
+
+    def _company_env(self, model_name):
+        company = self._get_company_required()
+        return request.env[model_name].sudo().with_company(company).with_context(
+            allowed_company_ids=[company.id],
+        )
+
+    def _get_inspector_user_id(self):
+        param_env = request.env['ir.config_parameter'].sudo()
+        for key in ('ecis_inspection.default_inspector_user', 'ecis_inspection.default_sales_user'):
+            value = param_env.get_param(key)
+            if value:
+                return int(value)
+        user = request.env.user
+        if user and user.id:
+            return user.id
+        admin = request.env.ref('base.user_admin', raise_if_not_found=False)
+        if admin:
+            return admin.id
+        fallback = request.env['res.users'].sudo().search([('active', '=', True)], limit=1)
+        return fallback.id if fallback else False
 
     def _serialize_partner(self, partner):
         return {
@@ -206,11 +278,14 @@ class EcisInspectionApiController(http.Controller):
             f'Email: {data.get("email")}\n'
             f'Message: {data.get("message") or ""}'
         )
-        return request.env['ecis.equipment'].sudo().create({
+        equipment_env = self._company_env('ecis.equipment')
+        company_id = self._get_company_required().id
+        return equipment_env.create({
             'name': equipment_name,
             'equipment_type': equipment_type,
             'client_id': company.id,
-            'company_id': request.env.company.id,
+            'company_id': company_id,
+            'serial_number': data.get('serial_number'),
             'location': data.get('location'),
             'notes': equipment_notes,
         })
@@ -224,11 +299,17 @@ class EcisInspectionApiController(http.Controller):
             f'Email: {data.get("email")}\n'
             f'Message: {data.get("message") or ""}'
         )
-        return request.env['ecis.inspection'].sudo().create({
+        inspection_env = self._company_env('ecis.inspection')
+        inspector_id = self._get_inspector_user_id()
+        if not inspector_id:
+            raise ValidationError('No inspector user available for inspection.')
+        return inspection_env.create({
             'equipment_id': equipment.id,
             'inspection_type': 'initial',
             'inspection_date': fields.Date.today(),
             'inspector_notes': inspection_notes,
+            'inspector_id': inspector_id,
+            'company_id': self._get_company_required().id,
         })
 
     @http.route('/api/<path:subpath>', type='http', auth='none', methods=['OPTIONS'], csrf=False, cors='*')
@@ -244,7 +325,7 @@ class EcisInspectionApiController(http.Controller):
     @http.route('/api/quote-request', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
     def create_quote_request(self, **_params):
         try:
-            data = self._get_json_body()
+            data = self._get_payload()
             required_fields = ['name', 'email', 'phone', 'equipment_type']
             missing = [f for f in required_fields if not data.get(f)]
             if missing:
@@ -295,8 +376,8 @@ class EcisInspectionApiController(http.Controller):
 
         except ValidationError as exc:
             return self._error_response(str(exc), status=400)
-        except Exception:
-            return self._error_response('An error occurred while processing your request', status=500)
+        except Exception as exc:
+            return self._error_response('An error occurred while processing your request', status=500, details=str(exc))
 
     @http.route('/api/inspections', type='http', auth='none', methods=['GET'], csrf=False, cors='*')
     def list_inspections(self, **params):
@@ -331,7 +412,7 @@ class EcisInspectionApiController(http.Controller):
         if auth_error:
             return auth_error
 
-        data = self._get_json_body()
+        data = self._get_payload()
         equipment_id = data.get('equipment_id')
         if not equipment_id:
             return self._error_response('equipment_id is required', status=400)
@@ -340,6 +421,11 @@ class EcisInspectionApiController(http.Controller):
         if not equipment.exists():
             return self._error_response('Equipment not found', status=404)
 
+        inspector_id = self._get_inspector_user_id()
+        if not inspector_id:
+            return self._error_response('No inspector user available for inspection.', status=400)
+
+        inspection_env = self._company_env('ecis.inspection')
         vals = {
             'equipment_id': equipment.id,
             'inspection_type': data.get('inspection_type') or 'periodic',
@@ -353,8 +439,10 @@ class EcisInspectionApiController(http.Controller):
             'inspector_notes': data.get('inspector_notes'),
             'next_inspection_due': data.get('next_inspection_due'),
             'next_inspection_frequency': data.get('next_inspection_frequency'),
+            'inspector_id': inspector_id,
+            'company_id': self._get_company_required().id,
         }
-        inspection = request.env['ecis.inspection'].sudo().create(vals)
+        inspection = inspection_env.create(vals)
 
         return self._json_response({
             'success': True,
@@ -387,9 +475,8 @@ class EcisInspectionApiController(http.Controller):
         if not record.exists():
             return self._error_response('Not found', status=404)
 
-        data = self._get_json_body()
-        vals = {}
-        for field in [
+        data = self._get_payload()
+        allowed_fields = {
             'inspection_type',
             'inspection_date',
             'inspection_duration',
@@ -402,10 +489,8 @@ class EcisInspectionApiController(http.Controller):
             'next_inspection_due',
             'next_inspection_frequency',
             'state',
-        ]:
-            if field in data:
-                vals[field] = data[field]
-
+        }
+        vals = {field: data.get(field) for field in allowed_fields if field in data}
         if vals:
             record.write(vals)
 
@@ -527,7 +612,7 @@ class EcisInspectionApiController(http.Controller):
         if not record.exists():
             return self._error_response('Inspection not found', status=404)
 
-        data = self._get_json_body()
+        data = self._get_payload()
         if not data.get('name'):
             return self._error_response('name is required', status=400)
 
@@ -552,11 +637,9 @@ class EcisInspectionApiController(http.Controller):
         if not item.exists():
             return self._error_response('Checklist item not found', status=404)
 
-        data = self._get_json_body()
-        vals = {}
-        for field in ['sequence', 'name', 'requirement', 'status', 'notes']:
-            if field in data:
-                vals[field] = data[field]
+        data = self._get_payload()
+        allowed_fields = {'sequence', 'name', 'requirement', 'status', 'notes'}
+        vals = {field: data.get(field) for field in allowed_fields if field in data}
         if vals:
             item.write(vals)
 
@@ -597,7 +680,7 @@ class EcisInspectionApiController(http.Controller):
         if auth_error:
             return auth_error
 
-        data = self._get_json_body()
+        data = self._get_payload()
         required = ['name', 'equipment_type', 'client_id']
         missing = [f for f in required if not data.get(f)]
         if missing:
@@ -607,11 +690,17 @@ class EcisInspectionApiController(http.Controller):
         if not client.exists():
             return self._error_response('Client not found', status=404)
 
-        equipment = request.env['ecis.equipment'].sudo().create({
+        try:
+            equipment_env = self._company_env('ecis.equipment')
+            company_id = self._get_company_required().id
+        except ValidationError as exc:
+            return self._error_response(str(exc), status=400)
+
+        equipment = equipment_env.create({
             'name': data.get('name'),
             'equipment_type': data.get('equipment_type'),
             'client_id': client.id,
-            'company_id': request.env.company.id,
+            'company_id': company_id,
             'brand': data.get('brand'),
             'model': data.get('model'),
             'serial_number': data.get('serial_number'),
@@ -645,14 +734,21 @@ class EcisInspectionApiController(http.Controller):
         if not equipment.exists():
             return self._error_response('Equipment not found', status=404)
 
-        data = self._get_json_body()
-        inspection = request.env['ecis.inspection'].sudo().create({
+        data = self._get_payload()
+        inspection_env = self._company_env('ecis.inspection')
+        inspector_id = self._get_inspector_user_id()
+        if not inspector_id:
+            return self._error_response('No inspector user available for inspection.', status=400)
+
+        inspection = inspection_env.create({
             'equipment_id': equipment.id,
             'inspection_type': data.get('inspection_type') or 'periodic',
             'inspection_date': data.get('inspection_date') or fields.Date.today(),
             'inspection_duration': data.get('inspection_duration'),
             'weather_conditions': data.get('weather_conditions'),
             'inspector_notes': data.get('inspector_notes'),
+            'inspector_id': inspector_id,
+            'company_id': inspection_env.env.company.id,
         })
 
         return self._json_response({'success': True, 'data': self._serialize_inspection(inspection)}, status=201)
