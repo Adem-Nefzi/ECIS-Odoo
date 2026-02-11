@@ -6,89 +6,246 @@
                 <t t-call="web.external_layout">
                     <div class="page">
                         
+                        <!-- CUSTOM HEADER WITH LOGO AND COMPANY INFO -->
+                        <div class="row mb-4" style="border-bottom: 3px solid #6C4AB6; padding-bottom: 20px;">
+                            <div class="col-6">
+                                <!-- Company Logo (if uploaded in Settings) -->
+                                <img t-if="o.company_id.logo" 
+                                     t-att-src="image_data_uri(o.company_id.logo)" 
+                                     style="max-height: 80px; max-width: 200px;" 
+                                     alt="ECIS-DZ"/>
+                                
+                                <!-- Fallback if no logo -->
+                                <div t-if="not o.company_id.logo" style="padding: 20px 0;">
+                                    <h3 style="color: #6C4AB6; margin: 0;">ECIS-DZ</h3>
+                                    <p style="color: #666; margin: 0; font-size: 14px;">Technical Inspection Services</p>
+                                </div>
+                            </div>
+                            
+                            <div class="col-6 text-right">
+                                <h4 style="color: #6C4AB6; margin-bottom: 5px;">
+                                    <span t-field="o.company_id.name"/>
+                                </h4>
+                                <p style="margin: 2px 0; font-size: 13px;">
+                                    <i class="fa fa-map-marker"/> 
+                                    <span t-field="o.company_id.street"/>, 
+                                    <span t-field="o.company_id.city"/>
+                                </p>
+                                <p style="margin: 2px 0; font-size: 13px;">
+                                    <i class="fa fa-phone"/> 
+                                    <span t-field="o.company_id.phone"/>
+                                </p>
+                                <p style="margin: 2px 0; font-size: 13px;">
+                                    <i class="fa fa-envelope"/> 
+                                    <span t-field="o.company_id.email"/>
+                                </p>
+                                <p t-if="o.company_id.website" style="margin: 2px 0; font-size: 13px;">
+                                    <i class="fa fa-globe"/> 
+                                    <span t-field="o.company_id.website"/>
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <!-- REPORT TITLE -->
                         <div class="row mb-4">
                             <div class="col-12 text-center">
-                                <h2>TECHNICAL INSPECTION REPORT</h2>
-                                <h4 class="text-muted">ECIS-DZ Technical Inspection Services</h4>
+                                <h2 style="color: #6C4AB6; font-weight: bold; margin-bottom: 5px;">
+                                    TECHNICAL INSPECTION REPORT
+                                </h2>
+                                <h5 class="text-muted" style="font-weight: normal;">
+                                    Certificate of Compliance
+                                </h5>
                             </div>
                         </div>
                         
-                        <div class="row mb-4">
+                        <!-- REPORT METADATA -->
+                        <div class="row mb-4" style="background-color: #f8f9fa; padding: 15px; border-radius: 5px;">
                             <div class="col-6">
-                                <strong>Report Number:</strong> <span t-field="o.name"/><br/>
-                                <strong>Inspection Date:</strong> <span t-field="o.inspection_date"/><br/>
-                                <strong>Inspection Type:</strong> <span t-field="o.inspection_type"/>
+                                <p style="margin: 5px 0;">
+                                    <strong>Report Number:</strong> 
+                                    <span t-field="o.name" style="color: #6C4AB6; font-weight: bold;"/>
+                                </p>
+                                <p style="margin: 5px 0;">
+                                    <strong>Inspection Date:</strong> 
+                                    <span t-field="o.inspection_date" t-options="{'widget': 'date'}"/>
+                                </p>
+                                <p style="margin: 5px 0;">
+                                    <strong>Inspection Type:</strong> 
+                                    <span t-field="o.inspection_type"/>
+                                </p>
                             </div>
                             <div class="col-6 text-right">
-                                <strong>Inspector:</strong> <span t-field="o.inspector_id.name"/><br/>
-                                <strong>Duration:</strong> <span t-field="o.inspection_duration"/> hours
+                                <p style="margin: 5px 0;">
+                                    <strong>Inspector:</strong> 
+                                    <span t-field="o.inspector_id.name"/>
+                                </p>
+                                <p style="margin: 5px 0;">
+                                    <strong>Duration:</strong> 
+                                    <span t-field="o.inspection_duration"/> hour(s)
+                                </p>
+                                <p t-if="o.weather_conditions" style="margin: 5px 0;">
+                                    <strong>Weather:</strong> 
+                                    <span t-field="o.weather_conditions"/>
+                                </p>
                             </div>
                         </div>
                         
-                        <hr/>
+                        <hr style="border-top: 2px solid #6C4AB6; margin: 30px 0;"/>
                         
+                        <!-- CLIENT AND EQUIPMENT INFORMATION -->
                         <div class="row mt-4">
+                            <!-- CLIENT INFORMATION -->
                             <div class="col-6">
-                                <h5>Client Information</h5>
+                                <h5 style="color: #6C4AB6; border-bottom: 2px solid #6C4AB6; padding-bottom: 5px; margin-bottom: 15px;">
+                                    <i class="fa fa-building"/> Client Information
+                                </h5>
                                 <table class="table table-sm table-borderless">
                                     <tr>
-                                        <td><strong>Company:</strong></td>
+                                        <td style="width: 40%;"><strong>Company:</strong></td>
                                         <td><span t-field="o.client_id.name"/></td>
                                     </tr>
-                                    <tr>
+                                    <tr t-if="o.client_id.street">
+                                        <td><strong>Address:</strong></td>
+                                        <td>
+                                            <span t-field="o.client_id.street"/>
+                                            <span t-if="o.client_id.street2"><br/><span t-field="o.client_id.street2"/></span>
+                                        </td>
+                                    </tr>
+                                    <tr t-if="o.client_id.city">
+                                        <td><strong>City:</strong></td>
+                                        <td>
+                                            <span t-field="o.client_id.city"/>
+                                            <span t-if="o.client_id.zip">, <span t-field="o.client_id.zip"/></span>
+                                        </td>
+                                    </tr>
+                                    <tr t-if="o.client_id.phone">
                                         <td><strong>Phone:</strong></td>
                                         <td><span t-field="o.client_id.phone"/></td>
                                     </tr>
-                                    <tr>
+                                    <tr t-if="o.client_id.email">
                                         <td><strong>Email:</strong></td>
                                         <td><span t-field="o.client_id.email"/></td>
+                                    </tr>
+                                    <tr t-if="o.client_id.vat">
+                                        <td><strong>Tax ID:</strong></td>
+                                        <td><span t-field="o.client_id.vat"/></td>
                                     </tr>
                                 </table>
                             </div>
                             
+                            <!-- EQUIPMENT INFORMATION -->
                             <div class="col-6">
-                                <h5>Equipment Information</h5>
+                                <h5 style="color: #6C4AB6; border-bottom: 2px solid #6C4AB6; padding-bottom: 5px; margin-bottom: 15px;">
+                                    <i class="fa fa-cog"/> Equipment Information
+                                </h5>
                                 <table class="table table-sm table-borderless">
                                     <tr>
-                                        <td><strong>Equipment:</strong></td>
+                                        <td style="width: 40%;"><strong>Equipment:</strong></td>
                                         <td><span t-field="o.equipment_id.name"/></td>
                                     </tr>
                                     <tr>
                                         <td><strong>Type:</strong></td>
-                                        <td><span t-field="o.equipment_type"/></td>
+                                        <td>
+                                            <t t-if="o.equipment_type == 'crane'">Crane</t>
+                                            <t t-elif="o.equipment_type == 'elevator'">Elevator</t>
+                                            <t t-elif="o.equipment_type == 'pressure_vessel'">Pressure Vessel</t>
+                                            <t t-elif="o.equipment_type == 'forklift'">Forklift</t>
+                                            <t t-elif="o.equipment_type == 'overhead_crane'">Overhead Crane</t>
+                                            <t t-elif="o.equipment_type == 'lifting_platform'">Lifting Platform</t>
+                                            <t t-else=""><span t-field="o.equipment_type"/></t>
+                                        </td>
                                     </tr>
-                                    <tr>
+                                    <tr t-if="o.equipment_id.brand">
                                         <td><strong>Brand:</strong></td>
                                         <td><span t-field="o.equipment_id.brand"/></td>
                                     </tr>
-                                    <tr>
+                                    <tr t-if="o.equipment_id.model">
+                                        <td><strong>Model:</strong></td>
+                                        <td><span t-field="o.equipment_id.model"/></td>
+                                    </tr>
+                                    <tr t-if="o.equipment_id.serial_number">
                                         <td><strong>Serial Number:</strong></td>
                                         <td><span t-field="o.equipment_id.serial_number"/></td>
+                                    </tr>
+                                    <tr t-if="o.equipment_id.manufacture_year">
+                                        <td><strong>Year:</strong></td>
+                                        <td><span t-field="o.equipment_id.manufacture_year"/></td>
+                                    </tr>
+                                    <tr t-if="o.equipment_id.capacity">
+                                        <td><strong>Capacity:</strong></td>
+                                        <td><span t-field="o.equipment_id.capacity"/></td>
+                                    </tr>
+                                    <tr t-if="o.equipment_id.location">
+                                        <td><strong>Location:</strong></td>
+                                        <td><span t-field="o.equipment_id.location"/></td>
                                     </tr>
                                 </table>
                             </div>
                         </div>
                         
+                        <!-- INSPECTION CHECKLIST -->
                         <div class="row mt-4">
                             <div class="col-12">
-                                <h5>Inspection Checklist</h5>
-                                <table class="table table-sm">
-                                    <thead>
+                                <h5 style="color: #6C4AB6; border-bottom: 2px solid #6C4AB6; padding-bottom: 5px; margin-bottom: 15px;">
+                                    <i class="fa fa-check-square-o"/> Inspection Checklist
+                                </h5>
+                                
+                                <!-- Checklist Summary -->
+                                <div class="row mb-3">
+                                    <div class="col-12" style="background-color: #f8f9fa; padding: 10px; border-radius: 5px;">
+                                        <span style="margin-right: 20px;">
+                                            <strong>Total Items:</strong> 
+                                            <span t-esc="o.checklist_total_count" style="color: #6C4AB6; font-weight: bold;"/>
+                                        </span>
+                                        <span style="margin-right: 20px;">
+                                            <strong>Passed:</strong> 
+                                            <span t-esc="o.checklist_pass_count" style="color: #28a745; font-weight: bold;"/>
+                                        </span>
+                                        <span>
+                                            <strong>Failed:</strong> 
+                                            <span t-esc="o.checklist_fail_count" style="color: #dc3545; font-weight: bold;"/>
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Checklist Table -->
+                                <table class="table table-sm table-bordered">
+                                    <thead style="background-color: #6C4AB6; color: white;">
                                         <tr>
-                                            <th>Check Item</th>
-                                            <th>Status</th>
-                                            <th>Notes</th>
+                                            <th style="width: 5%;">#</th>
+                                            <th style="width: 45%;">Check Item</th>
+                                            <th style="width: 20%;">Requirement/Standard</th>
+                                            <th style="width: 15%;">Status</th>
+                                            <th style="width: 15%;">Notes</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <t t-foreach="o.checklist_ids" t-as="item">
                                             <tr>
+                                                <td class="text-center"><span t-esc="item_index + 1"/></td>
                                                 <td><span t-field="item.name"/></td>
-                                                <td>
-                                                    <span t-if="item.status == 'pass'" class="badge badge-success">PASS</span>
-                                                    <span t-if="item.status == 'fail'" class="badge badge-danger">FAIL</span>
-                                                    <span t-if="item.status == 'warning'" class="badge badge-warning">WARNING</span>
-                                                    <span t-if="item.status == 'na'" class="badge badge-secondary">N/A</span>
+                                                <td><span t-field="item.requirement"/></td>
+                                                <td class="text-center">
+                                                    <span t-if="item.status == 'pass'" 
+                                                          class="badge badge-success" 
+                                                          style="font-size: 12px; padding: 5px 10px;">
+                                                        ✓ PASS
+                                                    </span>
+                                                    <span t-elif="item.status == 'fail'" 
+                                                          class="badge badge-danger" 
+                                                          style="font-size: 12px; padding: 5px 10px;">
+                                                        ✗ FAIL
+                                                    </span>
+                                                    <span t-elif="item.status == 'warning'" 
+                                                          class="badge badge-warning" 
+                                                          style="font-size: 12px; padding: 5px 10px;">
+                                                        ⚠ WARNING
+                                                    </span>
+                                                    <span t-else="" 
+                                                          class="badge badge-secondary" 
+                                                          style="font-size: 12px; padding: 5px 10px;">
+                                                        - N/A
+                                                    </span>
                                                 </td>
                                                 <td><span t-field="item.notes"/></td>
                                             </tr>
@@ -98,65 +255,153 @@
                             </div>
                         </div>
                         
+                        <!-- OVERALL ASSESSMENT -->
                         <div class="row mt-4">
                             <div class="col-12">
-                                <h5>Overall Assessment</h5>
-                                <div class="alert" t-att-class="'alert-success' if o.overall_result == 'approved' else 'alert-warning' if o.overall_result == 'conditional' else 'alert-danger'">
-                                    <h4>
-                                        <strong>
-                                            <span t-if="o.overall_result == 'approved'">APPROVED</span>
-                                            <span t-if="o.overall_result == 'conditional'">CONDITIONAL</span>
-                                            <span t-if="o.overall_result == 'rejected'">REJECTED</span>
-                                        </strong>
-                                    </h4>
+                                <h5 style="color: #6C4AB6; border-bottom: 2px solid #6C4AB6; padding-bottom: 5px; margin-bottom: 15px;">
+                                    <i class="fa fa-clipboard"/> Overall Assessment
+                                </h5>
+                                
+                                <div class="alert text-center" 
+                                     t-att-class="'alert-success' if o.overall_result == 'approved' else 'alert-warning' if o.overall_result == 'conditional' else 'alert-danger'"
+                                     style="padding: 20px; border-width: 3px;">
+                                    <h3 style="margin: 0; font-weight: bold;">
+                                        <t t-if="o.overall_result == 'approved'">
+                                            <i class="fa fa-check-circle"/> APPROVED
+                                        </t>
+                                        <t t-elif="o.overall_result == 'conditional'">
+                                            <i class="fa fa-exclamation-triangle"/> CONDITIONAL - REQUIRES FOLLOW-UP
+                                        </t>
+                                        <t t-else="">
+                                            <i class="fa fa-times-circle"/> REJECTED - NOT SAFE FOR USE
+                                        </t>
+                                    </h3>
                                 </div>
                             </div>
                         </div>
                         
-                        <t t-if="o.defects_found">
-                            <div class="row mt-3">
-                                <div class="col-12">
-                                    <h6>Defects Found:</h6>
-                                    <p t-field="o.defects_found"/>
+                        <!-- FINDINGS AND RECOMMENDATIONS -->
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                
+                                <!-- Defects Found -->
+                                <div t-if="o.defects_found" class="mb-3">
+                                    <h6 style="color: #dc3545; font-weight: bold;">
+                                        <i class="fa fa-exclamation-circle"/> Defects Found:
+                                    </h6>
+                                    <div style="background-color: #f8d7da; border-left: 4px solid #dc3545; padding: 10px;">
+                                        <span t-field="o.defects_found"/>
+                                    </div>
+                                </div>
+                                
+                                <!-- Immediate Actions Required -->
+                                <div t-if="o.immediate_actions_required" class="mb-3">
+                                    <h6 style="color: #ffc107; font-weight: bold;">
+                                        <i class="fa fa-warning"/> Immediate Actions Required:
+                                    </h6>
+                                    <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 10px;">
+                                        <span t-field="o.immediate_actions_required"/>
+                                    </div>
+                                </div>
+                                
+                                <!-- Recommendations -->
+                                <div t-if="o.recommendations" class="mb-3">
+                                    <h6 style="color: #17a2b8; font-weight: bold;">
+                                        <i class="fa fa-lightbulb-o"/> Recommendations:
+                                    </h6>
+                                    <div style="background-color: #d1ecf1; border-left: 4px solid #17a2b8; padding: 10px;">
+                                        <span t-field="o.recommendations"/>
+                                    </div>
+                                </div>
+                                
+                                <!-- Inspector Notes -->
+                                <div t-if="o.inspector_notes" class="mb-3">
+                                    <h6 style="color: #6c757d; font-weight: bold;">
+                                        <i class="fa fa-pencil"/> Inspector Notes:
+                                    </h6>
+                                    <div style="background-color: #f8f9fa; border-left: 4px solid #6c757d; padding: 10px;">
+                                        <span t-field="o.inspector_notes"/>
+                                    </div>
+                                </div>
+                                
+                            </div>
+                        </div>
+                        
+                        <!-- NEXT INSPECTION -->
+                        <div t-if="o.next_inspection_due" class="row mt-3">
+                            <div class="col-12">
+                                <div style="background-color: #e3f2fd; border: 2px solid #2196F3; padding: 15px; border-radius: 5px;">
+                                    <h6 style="color: #1976D2; margin: 0;">
+                                        <i class="fa fa-calendar"/> Next Inspection Due: 
+                                        <strong>
+                                            <span t-field="o.next_inspection_due" t-options="{'widget': 'date'}"/>
+                                        </strong>
+                                    </h6>
+                                    <p t-if="o.next_inspection_frequency" style="margin: 5px 0 0 0; color: #666;">
+                                        Recommended frequency: Every <span t-field="o.next_inspection_frequency"/> month(s)
+                                    </p>
                                 </div>
                             </div>
-                        </t>
+                        </div>
                         
-                        <t t-if="o.recommendations">
-                            <div class="row mt-3">
-                                <div class="col-12">
-                                    <h6>Recommendations:</h6>
-                                    <p t-field="o.recommendations"/>
-                                </div>
-                            </div>
-                        </t>
-                        
-                        <div class="row mt-5">
+                        <!-- SIGNATURES -->
+                        <div class="row mt-5" style="page-break-inside: avoid;">
                             <div class="col-6">
-                                <div class="border p-3">
-                                    <h6>Inspector Signature</h6>
-                                    <t t-if="o.inspector_signature">
-                                        <img t-att-src="image_data_uri(o.inspector_signature)" style="max-height: 80px;"/>
-                                    </t>
+                                <div class="border p-3" style="min-height: 150px;">
+                                    <h6 style="color: #6C4AB6; font-weight: bold; margin-bottom: 15px;">
+                                        Inspector Signature
+                                    </h6>
+                                    <div class="text-center" style="min-height: 80px;">
+                                        <t t-if="o.inspector_signature">
+                                            <img t-att-src="image_data_uri(o.inspector_signature)" 
+                                                 style="max-height: 80px; max-width: 200px;"/>
+                                        </t>
+                                    </div>
                                     <div class="mt-2">
                                         <strong><span t-field="o.inspector_id.name"/></strong><br/>
-                                        Date: <span t-field="o.inspection_date"/>
+                                        <span style="color: #666;">
+                                            Date: <span t-field="o.inspection_date" t-options="{'widget': 'date'}"/>
+                                        </span>
                                     </div>
                                 </div>
                             </div>
                             
                             <div class="col-6">
-                                <div class="border p-3">
-                                    <h6>Client Representative</h6>
-                                    <t t-if="o.client_signature">
-                                        <img t-att-src="image_data_uri(o.client_signature)" style="max-height: 80px;"/>
-                                    </t>
-                                    <div class="mt-2">
-                                        <t t-if="o.client_representative">
-                                            <strong><span t-field="o.client_representative"/></strong>
+                                <div class="border p-3" style="min-height: 150px;">
+                                    <h6 style="color: #6C4AB6; font-weight: bold; margin-bottom: 15px;">
+                                        Client Representative
+                                    </h6>
+                                    <div class="text-center" style="min-height: 80px;">
+                                        <t t-if="o.client_signature">
+                                            <img t-att-src="image_data_uri(o.client_signature)" 
+                                                 style="max-height: 80px; max-width: 200px;"/>
                                         </t>
                                     </div>
+                                    <div class="mt-2">
+                                        <t t-if="o.client_representative">
+                                            <strong><span t-field="o.client_representative"/></strong><br/>
+                                        </t>
+                                        <span style="color: #666;">
+                                            Company: <span t-field="o.client_id.name"/>
+                                        </span>
+                                    </div>
                                 </div>
+                            </div>
+                        </div>
+                        
+                        <!-- FOOTER -->
+                        <div class="row mt-4" style="border-top: 2px solid #6C4AB6; padding-top: 15px;">
+                            <div class="col-12 text-center">
+                                <p style="font-size: 11px; color: #666; margin: 5px 0;">
+                                    This report is valid only with both signatures and company stamp.
+                                </p>
+                                <p style="font-size: 11px; color: #666; margin: 5px 0;">
+                                    Report generated on: <span t-esc="context_timestamp(datetime.datetime.now()).strftime('%Y-%m-%d %H:%M:%S')"/>
+                                </p>
+                                <p style="font-size: 11px; color: #999; margin: 5px 0;">
+                                    © <span t-esc="datetime.datetime.now().year"/> 
+                                    <span t-field="o.company_id.name"/> - All Rights Reserved
+                                </p>
                             </div>
                         </div>
                         

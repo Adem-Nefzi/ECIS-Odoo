@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <!-- Replace Odoo logo with ECIS logo -->
+    <t t-name="web.Menu.logo" t-inherit="web.Menu.logo" t-inherit-mode="primary">
+        <xpath expr="//img[@class='o_menu_brand_icon']" position="replace">
+            <img class="o_menu_brand_icon" 
+                 src="/ecis_white_label/static/src/img/ecis_icon.png" 
+                 alt="ECIS-DZ"/>
+        </xpath>
+        <xpath expr="//span[@class='o_menu_brand']" position="replace">
+            <span class="o_menu_brand">ECIS-DZ</span>
+        </xpath>
+    </t>
+
+    <!-- Customize app drawer -->
+    <t t-name="web.AppSwitcherMenu" t-inherit="web.AppSwitcherMenu" t-inherit-mode="primary">
+        <xpath expr="//a[@class='o_menu_brand']" position="replace">
+            <a href="#" class="o_menu_brand">
+                <img src="/ecis_white_label/static/src/img/ecis_logo.png" alt="ECIS-DZ"/>
+            </a>
+        </xpath>
+    </t>
+
+</templates>
