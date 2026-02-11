@@ -1,0 +1,133 @@
+/* ============================================ 
+   LUXURY CORPORATE BRAND COLORS 
+   ============================================ */
+:root {
+  --ecis-primary: #0f172a; /* Deep Navy (Main Brand) */
+  --ecis-secondary: #1e293b; /* Slate Blue Hover */
+  --ecis-accent: #c6a75e; /* Soft Gold Accent */
+  --ecis-success: #166534; /* Elegant Green */
+  --ecis-warning: #b45309; /* Refined Amber */
+  --ecis-danger: #b91c1c; /* Deep Red */
+}
+
+/* ============================================ 
+   PRIMARY BUTTONS 
+   ============================================ */
+.btn-primary {
+  background-color: var(--ecis-primary) !important;
+  border-color: var(--ecis-primary) !important;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+  background-color: var(--ecis-secondary) !important;
+  border-color: var(--ecis-secondary) !important;
+}
+
+/* ============================================ 
+   TOP NAVIGATION BAR 
+   ============================================ */
+.o_main_navbar {
+  background: linear-gradient(90deg, #0f172a, #1e293b) !important;
+  border-bottom: 1px solid rgba(198, 167, 94, 0.3);
+}
+
+.o_navbar_apps_menu button:hover {
+  background-color: var(--ecis-secondary) !important;
+}
+
+/* ============================================ 
+   LINKS 
+   ============================================ */
+a {
+  color: var(--ecis-primary);
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--ecis-accent);
+}
+
+/* ============================================ 
+   LOGIN PAGE 
+   ============================================ */
+.o_database_list .list-group-item:hover {
+  border-color: var(--ecis-accent);
+  background-color: rgba(198, 167, 94, 0.06);
+}
+
+.o_login_auth .btn-primary {
+  background-color: var(--ecis-primary);
+  border-color: var(--ecis-primary);
+}
+
+/* Login page footer styling */
+.text-muted {
+  color: #64748b !important; /* Smooth neutral gray */
+}
+
+/* ============================================ 
+   FORM ELEMENTS 
+   ============================================ */
+.form-control:focus {
+  border-color: var(--ecis-accent);
+  box-shadow: 0 0 0 0.2rem rgba(198, 167, 94, 0.18);
+}
+
+/* ============================================ 
+   BADGES & LABELS 
+   ============================================ */
+.badge-primary {
+  background-color: var(--ecis-primary);
+}
+
+.badge-success {
+  background-color: var(--ecis-success);
+}
+
+.badge-warning {
+  background-color: var(--ecis-warning);
+}
+
+.badge-danger {
+  background-color: var(--ecis-danger);
+}
+
+/* ============================================ 
+   STATUS BAR 
+   ============================================ */
+.o_statusbar_status .o_arrow_button.btn-primary {
+  background-color: var(--ecis-primary);
+  border-color: var(--ecis-primary);
+}
+
+.o_statusbar_status .o_arrow_button.btn-primary:hover {
+  background-color: var(--ecis-secondary);
+}
+
+/* ============================================ 
+   KANBAN VIEW 
+   ============================================ */
+.o_kanban_record:hover {
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.15);
+  transition: all 0.2s ease;
+}
+
+/* ============================================ 
+   PAGINATION 
+   ============================================ */
+.page-link {
+  color: var(--ecis-primary);
+}
+
+.page-link:hover {
+  color: var(--ecis-accent);
+  background-color: rgba(198, 167, 94, 0.08);
+}
+
+.page-item.active .page-link {
+  background-color: var(--ecis-primary);
+  border-color: var(--ecis-primary);
+}
