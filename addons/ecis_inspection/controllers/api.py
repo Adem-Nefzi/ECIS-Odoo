@@ -379,456 +379,456 @@ class EcisInspectionApiController(http.Controller):
         except Exception as exc:
             return self._error_response('An error occurred while processing your request', status=500, details=str(exc))
 
-    @http.route('/api/inspections', type='http', auth='none', methods=['GET'], csrf=False, cors='*')
-    def list_inspections(self, **params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        domain = []
-        state = params.get('state')
-        if state:
-            domain.append(('state', '=', state))
-        date_from = params.get('date_from')
-        if date_from:
-            domain.append(('inspection_date', '>=', date_from))
-        date_to = params.get('date_to')
-        if date_to:
-            domain.append(('inspection_date', '<=', date_to))
-
-        limit = self._parse_int(params.get('limit', 50), 50)
-        offset = self._parse_int(params.get('offset', 0), 0)
-
-        inspections = request.env['ecis.inspection'].sudo().search(domain, limit=limit, offset=offset)
-        return self._json_response({
-            'success': True,
-            'data': [self._serialize_inspection(r) for r in inspections],
-            'count': len(inspections),
-        })
-
-    @http.route('/api/inspections', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
-    def create_inspection(self, **_params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        data = self._get_payload()
-        equipment_id = data.get('equipment_id')
-        if not equipment_id:
-            return self._error_response('equipment_id is required', status=400)
-
-        equipment = request.env['ecis.equipment'].sudo().browse(int(equipment_id))
-        if not equipment.exists():
-            return self._error_response('Equipment not found', status=404)
-
-        inspector_id = self._get_inspector_user_id()
-        if not inspector_id:
-            return self._error_response('No inspector user available for inspection.', status=400)
-
-        inspection_env = self._company_env('ecis.inspection')
-        vals = {
-            'equipment_id': equipment.id,
-            'inspection_type': data.get('inspection_type') or 'periodic',
-            'inspection_date': data.get('inspection_date') or fields.Date.today(),
-            'inspection_duration': data.get('inspection_duration'),
-            'weather_conditions': data.get('weather_conditions'),
-            'overall_result': data.get('overall_result'),
-            'defects_found': data.get('defects_found'),
-            'immediate_actions_required': data.get('immediate_actions_required'),
-            'recommendations': data.get('recommendations'),
-            'inspector_notes': data.get('inspector_notes'),
-            'next_inspection_due': data.get('next_inspection_due'),
-            'next_inspection_frequency': data.get('next_inspection_frequency'),
-            'inspector_id': inspector_id,
-            'company_id': self._get_company_required().id,
-        }
-        inspection = inspection_env.create(vals)
-
-        return self._json_response({
-            'success': True,
-            'data': self._serialize_inspection(inspection, include_checklist=True),
-        }, status=201)
-
-    @http.route('/api/inspections/<int:inspection_id>', type='http', auth='none', methods=['GET'], csrf=False, cors='*')
-    def get_inspection(self, inspection_id, **params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        record = request.env['ecis.inspection'].sudo().browse(inspection_id)
-        if not record.exists():
-            return self._error_response('Not found', status=404)
-
-        include_checklist = self._parse_bool(params.get('include_checklist'))
-        return self._json_response({
-            'success': True,
-            'data': self._serialize_inspection(record, include_checklist=include_checklist),
-        })
-
-    @http.route('/api/inspections/<int:inspection_id>', type='http', auth='none', methods=['PUT', 'PATCH'], csrf=False, cors='*')
-    def update_inspection(self, inspection_id, **_params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        record = request.env['ecis.inspection'].sudo().browse(inspection_id)
-        if not record.exists():
-            return self._error_response('Not found', status=404)
-
-        data = self._get_payload()
-        allowed_fields = {
-            'inspection_type',
-            'inspection_date',
-            'inspection_duration',
-            'weather_conditions',
-            'overall_result',
-            'defects_found',
-            'immediate_actions_required',
-            'recommendations',
-            'inspector_notes',
-            'next_inspection_due',
-            'next_inspection_frequency',
-            'state',
-        }
-        vals = {field: data.get(field) for field in allowed_fields if field in data}
-        if vals:
-            record.write(vals)
-
-        return self._json_response({'success': True, 'data': self._serialize_inspection(record, include_checklist=True)})
-
-    @http.route('/api/inspections/<int:inspection_id>/start', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
-    def start_inspection(self, inspection_id, **_params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        record = request.env['ecis.inspection'].sudo().browse(inspection_id)
-        if not record.exists():
-            return self._error_response('Not found', status=404)
-
-        record.action_start_inspection()
-        return self._json_response({'success': True, 'data': self._serialize_inspection(record)})
-
-    @http.route('/api/inspections/<int:inspection_id>/complete', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
-    def complete_inspection(self, inspection_id, **_params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        record = request.env['ecis.inspection'].sudo().browse(inspection_id)
-        if not record.exists():
-            return self._error_response('Not found', status=404)
-
-        try:
-            record.action_complete_inspection()
-        except UserError as exc:
-            return self._error_response(str(exc), status=400)
-
-        return self._json_response({'success': True, 'data': self._serialize_inspection(record)})
-
-    @http.route('/api/inspections/<int:inspection_id>/send', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
-    def send_inspection(self, inspection_id, **_params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        record = request.env['ecis.inspection'].sudo().browse(inspection_id)
-        if not record.exists():
-            return self._error_response('Not found', status=404)
-
-        result = record.action_send_to_client()
-        return self._json_response({
-            'success': True,
-            'data': self._serialize_inspection(record),
-            'notification': result if isinstance(result, dict) else None,
-        })
-
-    @http.route('/api/inspections/<int:inspection_id>/cancel', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
-    def cancel_inspection(self, inspection_id, **_params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        record = request.env['ecis.inspection'].sudo().browse(inspection_id)
-        if not record.exists():
-            return self._error_response('Not found', status=404)
-
-        record.action_cancel()
-        return self._json_response({'success': True, 'data': self._serialize_inspection(record)})
-
-    @http.route('/api/inspections/<int:inspection_id>/reset', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
-    def reset_inspection(self, inspection_id, **_params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        record = request.env['ecis.inspection'].sudo().browse(inspection_id)
-        if not record.exists():
-            return self._error_response('Not found', status=404)
-
-        record.action_reset_to_draft()
-        return self._json_response({'success': True, 'data': self._serialize_inspection(record)})
-
-    @http.route('/api/inspections/<int:inspection_id>/report', type='http', auth='none', methods=['GET'], csrf=False, cors='*')
-    def inspection_report(self, inspection_id, **_params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        record = request.env['ecis.inspection'].sudo().browse(inspection_id)
-        if not record.exists():
-            return self._error_response('Not found', status=404)
-
-        report = request.env.ref('ecis_inspection.action_report_inspection').sudo()
-        pdf_content, _ = report._render_qweb_pdf(res_ids=[record.id])
-        return self._json_response({
-            'success': True,
-            'data': {
-                'filename': record.report_pdf_name or 'Inspection_Report.pdf',
-                'content_base64': base64.b64encode(pdf_content).decode('ascii'),
-            },
-        })
-
-    @http.route('/api/inspections/<int:inspection_id>/checklist', type='http', auth='none', methods=['GET'], csrf=False, cors='*')
-    def list_checklist(self, inspection_id, **_params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        record = request.env['ecis.inspection'].sudo().browse(inspection_id)
-        if not record.exists():
-            return self._error_response('Inspection not found', status=404)
-
-        items = [self._serialize_checklist_item(i) for i in record.checklist_ids]
-        return self._json_response({'success': True, 'data': items})
-
-    @http.route('/api/inspections/<int:inspection_id>/checklist', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
-    def create_checklist_item(self, inspection_id, **_params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        record = request.env['ecis.inspection'].sudo().browse(inspection_id)
-        if not record.exists():
-            return self._error_response('Inspection not found', status=404)
-
-        data = self._get_payload()
-        if not data.get('name'):
-            return self._error_response('name is required', status=400)
-
-        item = request.env['ecis.inspection.checklist'].sudo().create({
-            'inspection_id': record.id,
-            'sequence': self._parse_int(data.get('sequence', 10), 10),
-            'name': data.get('name'),
-            'requirement': data.get('requirement'),
-            'status': data.get('status') or 'pass',
-            'notes': data.get('notes'),
-        })
-
-        return self._json_response({'success': True, 'data': self._serialize_checklist_item(item)}, status=201)
-
-    @http.route('/api/checklist/<int:item_id>', type='http', auth='none', methods=['PUT', 'PATCH'], csrf=False, cors='*')
-    def update_checklist_item(self, item_id, **_params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        item = request.env['ecis.inspection.checklist'].sudo().browse(item_id)
-        if not item.exists():
-            return self._error_response('Checklist item not found', status=404)
-
-        data = self._get_payload()
-        allowed_fields = {'sequence', 'name', 'requirement', 'status', 'notes'}
-        vals = {field: data.get(field) for field in allowed_fields if field in data}
-        if vals:
-            item.write(vals)
-
-        return self._json_response({'success': True, 'data': self._serialize_checklist_item(item)})
-
-    @http.route('/api/checklist/<int:item_id>', type='http', auth='none', methods=['DELETE'], csrf=False, cors='*')
-    def delete_checklist_item(self, item_id, **_params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        item = request.env['ecis.inspection.checklist'].sudo().browse(item_id)
-        if not item.exists():
-            return self._error_response('Checklist item not found', status=404)
-
-        item.unlink()
-        return self._json_response({'success': True})
-
-    @http.route('/api/equipment', type='http', auth='none', methods=['GET'], csrf=False, cors='*')
-    def list_equipment(self, **params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        limit = self._parse_int(params.get('limit', 50), 50)
-        offset = self._parse_int(params.get('offset', 0), 0)
-
-        records = request.env['ecis.equipment'].sudo().search([], limit=limit, offset=offset)
-        return self._json_response({
-            'success': True,
-            'data': [self._serialize_equipment(r) for r in records],
-            'count': len(records),
-        })
-
-    @http.route('/api/equipment', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
-    def create_equipment(self, **_params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        data = self._get_payload()
-        required = ['name', 'equipment_type', 'client_id']
-        missing = [f for f in required if not data.get(f)]
-        if missing:
-            return self._error_response(f'Missing required fields: {", ".join(missing)}', status=400)
-
-        client = request.env['res.partner'].sudo().browse(int(data.get('client_id')))
-        if not client.exists():
-            return self._error_response('Client not found', status=404)
-
-        try:
-            equipment_env = self._company_env('ecis.equipment')
-            company_id = self._get_company_required().id
-        except ValidationError as exc:
-            return self._error_response(str(exc), status=400)
-
-        equipment = equipment_env.create({
-            'name': data.get('name'),
-            'equipment_type': data.get('equipment_type'),
-            'client_id': client.id,
-            'company_id': company_id,
-            'brand': data.get('brand'),
-            'model': data.get('model'),
-            'serial_number': data.get('serial_number'),
-            'manufacture_year': data.get('manufacture_year'),
-            'capacity': data.get('capacity'),
-            'location': data.get('location'),
-            'notes': data.get('notes'),
-        })
-
-        return self._json_response({'success': True, 'data': self._serialize_equipment(equipment)}, status=201)
-
-    @http.route('/api/equipment/<int:equipment_id>', type='http', auth='none', methods=['GET'], csrf=False, cors='*')
-    def get_equipment(self, equipment_id, **_params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        record = request.env['ecis.equipment'].sudo().browse(equipment_id)
-        if not record.exists():
-            return self._error_response('Not found', status=404)
-
-        return self._json_response({'success': True, 'data': self._serialize_equipment(record)})
-
-    @http.route('/api/equipment/<int:equipment_id>/schedule-inspection', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
-    def schedule_inspection(self, equipment_id, **_params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        equipment = request.env['ecis.equipment'].sudo().browse(equipment_id)
-        if not equipment.exists():
-            return self._error_response('Equipment not found', status=404)
-
-        data = self._get_payload()
-        inspection_env = self._company_env('ecis.inspection')
-        inspector_id = self._get_inspector_user_id()
-        if not inspector_id:
-            return self._error_response('No inspector user available for inspection.', status=400)
-
-        inspection = inspection_env.create({
-            'equipment_id': equipment.id,
-            'inspection_type': data.get('inspection_type') or 'periodic',
-            'inspection_date': data.get('inspection_date') or fields.Date.today(),
-            'inspection_duration': data.get('inspection_duration'),
-            'weather_conditions': data.get('weather_conditions'),
-            'inspector_notes': data.get('inspector_notes'),
-            'inspector_id': inspector_id,
-            'company_id': inspection_env.env.company.id,
-        })
-
-        return self._json_response({'success': True, 'data': self._serialize_inspection(inspection)}, status=201)
-
-    @http.route('/api/quote-requests', type='http', auth='none', methods=['GET'], csrf=False, cors='*')
-    def list_quote_requests(self, **params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        limit = self._parse_int(params.get('limit', 50), 50)
-        offset = self._parse_int(params.get('offset', 0), 0)
-
-        records = request.env['ecis.quote.request'].sudo().search([], limit=limit, offset=offset)
-        return self._json_response({
-            'success': True,
-            'data': [self._serialize_quote_request(r) for r in records],
-            'count': len(records),
-        })
-
-    @http.route('/api/quote-requests/<int:request_id>', type='http', auth='none', methods=['GET'], csrf=False, cors='*')
-    def get_quote_request(self, request_id, **_params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        record = request.env['ecis.quote.request'].sudo().browse(request_id)
-        if not record.exists():
-            return self._error_response('Not found', status=404)
-
-        return self._json_response({'success': True, 'data': self._serialize_quote_request(record)})
-
-    @http.route('/api/quote-requests/<int:request_id>/contact', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
-    def contact_quote_request(self, request_id, **_params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        record = request.env['ecis.quote.request'].sudo().browse(request_id)
-        if not record.exists():
-            return self._error_response('Not found', status=404)
-
-        record.action_contact_client()
-        return self._json_response({'success': True, 'data': self._serialize_quote_request(record)})
-
-    @http.route('/api/quote-requests/<int:request_id>/send-quote', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
-    def send_quote_request(self, request_id, **_params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        record = request.env['ecis.quote.request'].sudo().browse(request_id)
-        if not record.exists():
-            return self._error_response('Not found', status=404)
-
-        record.action_send_quote()
-        return self._json_response({'success': True, 'data': self._serialize_quote_request(record)})
-
-    @http.route('/api/quote-requests/<int:request_id>/convert', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
-    def convert_quote_request(self, request_id, **_params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        record = request.env['ecis.quote.request'].sudo().browse(request_id)
-        if not record.exists():
-            return self._error_response('Not found', status=404)
-
-        record.action_convert_to_client()
-        return self._json_response({'success': True, 'data': self._serialize_quote_request(record)})
-
-    @http.route('/api/quote-requests/<int:request_id>/lost', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
-    def lost_quote_request(self, request_id, **_params):
-        auth_error = self._require_api_key()
-        if auth_error:
-            return auth_error
-
-        record = request.env['ecis.quote.request'].sudo().browse(request_id)
-        if not record.exists():
-            return self._error_response('Not found', status=404)
-
-        record.action_mark_lost()
-        return self._json_response({'success': True, 'data': self._serialize_quote_request(record)})
+    # @http.route('/api/inspections', type='http', auth='none', methods=['GET'], csrf=False, cors='*')
+    # def list_inspections(self, **params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     domain = []
+    #     state = params.get('state')
+    #     if state:
+    #         domain.append(('state', '=', state))
+    #     date_from = params.get('date_from')
+    #     if date_from:
+    #         domain.append(('inspection_date', '>=', date_from))
+    #     date_to = params.get('date_to')
+    #     if date_to:
+    #         domain.append(('inspection_date', '<=', date_to))
+
+    #     limit = self._parse_int(params.get('limit', 50), 50)
+    #     offset = self._parse_int(params.get('offset', 0), 0)
+
+    #     inspections = request.env['ecis.inspection'].sudo().search(domain, limit=limit, offset=offset)
+    #     return self._json_response({
+    #         'success': True,
+    #         'data': [self._serialize_inspection(r) for r in inspections],
+    #         'count': len(inspections),
+    #     })
+
+    # @http.route('/api/inspections', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
+    # def create_inspection(self, **_params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     data = self._get_payload()
+    #     equipment_id = data.get('equipment_id')
+    #     if not equipment_id:
+    #         return self._error_response('equipment_id is required', status=400)
+
+    #     equipment = request.env['ecis.equipment'].sudo().browse(int(equipment_id))
+    #     if not equipment.exists():
+    #         return self._error_response('Equipment not found', status=404)
+
+    #     inspector_id = self._get_inspector_user_id()
+    #     if not inspector_id:
+    #         return self._error_response('No inspector user available for inspection.', status=400)
+
+    #     inspection_env = self._company_env('ecis.inspection')
+    #     vals = {
+    #         'equipment_id': equipment.id,
+    #         'inspection_type': data.get('inspection_type') or 'periodic',
+    #         'inspection_date': data.get('inspection_date') or fields.Date.today(),
+    #         'inspection_duration': data.get('inspection_duration'),
+    #         'weather_conditions': data.get('weather_conditions'),
+    #         'overall_result': data.get('overall_result'),
+    #         'defects_found': data.get('defects_found'),
+    #         'immediate_actions_required': data.get('immediate_actions_required'),
+    #         'recommendations': data.get('recommendations'),
+    #         'inspector_notes': data.get('inspector_notes'),
+    #         'next_inspection_due': data.get('next_inspection_due'),
+    #         'next_inspection_frequency': data.get('next_inspection_frequency'),
+    #         'inspector_id': inspector_id,
+    #         'company_id': self._get_company_required().id,
+    #     }
+    #     inspection = inspection_env.create(vals)
+
+    #     return self._json_response({
+    #         'success': True,
+    #         'data': self._serialize_inspection(inspection, include_checklist=True),
+    #     }, status=201)
+
+    # @http.route('/api/inspections/<int:inspection_id>', type='http', auth='none', methods=['GET'], csrf=False, cors='*')
+    # def get_inspection(self, inspection_id, **params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     record = request.env['ecis.inspection'].sudo().browse(inspection_id)
+    #     if not record.exists():
+    #         return self._error_response('Not found', status=404)
+
+    #     include_checklist = self._parse_bool(params.get('include_checklist'))
+    #     return self._json_response({
+    #         'success': True,
+    #         'data': self._serialize_inspection(record, include_checklist=include_checklist),
+    #     })
+
+    # @http.route('/api/inspections/<int:inspection_id>', type='http', auth='none', methods=['PUT', 'PATCH'], csrf=False, cors='*')
+    # def update_inspection(self, inspection_id, **_params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     record = request.env['ecis.inspection'].sudo().browse(inspection_id)
+    #     if not record.exists():
+    #         return self._error_response('Not found', status=404)
+
+    #     data = self._get_payload()
+    #     allowed_fields = {
+    #         'inspection_type',
+    #         'inspection_date',
+    #         'inspection_duration',
+    #         'weather_conditions',
+    #         'overall_result',
+    #         'defects_found',
+    #         'immediate_actions_required',
+    #         'recommendations',
+    #         'inspector_notes',
+    #         'next_inspection_due',
+    #         'next_inspection_frequency',
+    #         'state',
+    #     }
+    #     vals = {field: data.get(field) for field in allowed_fields if field in data}
+    #     if vals:
+    #         record.write(vals)
+
+    #     return self._json_response({'success': True, 'data': self._serialize_inspection(record, include_checklist=True)})
+
+    # @http.route('/api/inspections/<int:inspection_id>/start', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
+    # def start_inspection(self, inspection_id, **_params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     record = request.env['ecis.inspection'].sudo().browse(inspection_id)
+    #     if not record.exists():
+    #         return self._error_response('Not found', status=404)
+
+    #     record.action_start_inspection()
+    #     return self._json_response({'success': True, 'data': self._serialize_inspection(record)})
+
+    # @http.route('/api/inspections/<int:inspection_id>/complete', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
+    # def complete_inspection(self, inspection_id, **_params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     record = request.env['ecis.inspection'].sudo().browse(inspection_id)
+    #     if not record.exists():
+    #         return self._error_response('Not found', status=404)
+
+    #     try:
+    #         record.action_complete_inspection()
+    #     except UserError as exc:
+    #         return self._error_response(str(exc), status=400)
+
+    #     return self._json_response({'success': True, 'data': self._serialize_inspection(record)})
+
+    # @http.route('/api/inspections/<int:inspection_id>/send', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
+    # def send_inspection(self, inspection_id, **_params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     record = request.env['ecis.inspection'].sudo().browse(inspection_id)
+    #     if not record.exists():
+    #         return self._error_response('Not found', status=404)
+
+    #     result = record.action_send_to_client()
+    #     return self._json_response({
+    #         'success': True,
+    #         'data': self._serialize_inspection(record),
+    #         'notification': result if isinstance(result, dict) else None,
+    #     })
+
+    # @http.route('/api/inspections/<int:inspection_id>/cancel', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
+    # def cancel_inspection(self, inspection_id, **_params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     record = request.env['ecis.inspection'].sudo().browse(inspection_id)
+    #     if not record.exists():
+    #         return self._error_response('Not found', status=404)
+
+    #     record.action_cancel()
+    #     return self._json_response({'success': True, 'data': self._serialize_inspection(record)})
+
+    # @http.route('/api/inspections/<int:inspection_id>/reset', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
+    # def reset_inspection(self, inspection_id, **_params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     record = request.env['ecis.inspection'].sudo().browse(inspection_id)
+    #     if not record.exists():
+    #         return self._error_response('Not found', status=404)
+
+    #     record.action_reset_to_draft()
+    #     return self._json_response({'success': True, 'data': self._serialize_inspection(record)})
+
+    # @http.route('/api/inspections/<int:inspection_id>/report', type='http', auth='none', methods=['GET'], csrf=False, cors='*')
+    # def inspection_report(self, inspection_id, **_params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     record = request.env['ecis.inspection'].sudo().browse(inspection_id)
+    #     if not record.exists():
+    #         return self._error_response('Not found', status=404)
+
+    #     report = request.env.ref('ecis_inspection.action_report_inspection').sudo()
+    #     pdf_content, _ = report._render_qweb_pdf(res_ids=[record.id])
+    #     return self._json_response({
+    #         'success': True,
+    #         'data': {
+    #             'filename': record.report_pdf_name or 'Inspection_Report.pdf',
+    #             'content_base64': base64.b64encode(pdf_content).decode('ascii'),
+    #         },
+    #     })
+
+    # @http.route('/api/inspections/<int:inspection_id>/checklist', type='http', auth='none', methods=['GET'], csrf=False, cors='*')
+    # def list_checklist(self, inspection_id, **_params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     record = request.env['ecis.inspection'].sudo().browse(inspection_id)
+    #     if not record.exists():
+    #         return self._error_response('Inspection not found', status=404)
+
+    #     items = [self._serialize_checklist_item(i) for i in record.checklist_ids]
+    #     return self._json_response({'success': True, 'data': items})
+
+    # @http.route('/api/inspections/<int:inspection_id>/checklist', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
+    # def create_checklist_item(self, inspection_id, **_params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     record = request.env['ecis.inspection'].sudo().browse(inspection_id)
+    #     if not record.exists():
+    #         return self._error_response('Inspection not found', status=404)
+
+    #     data = self._get_payload()
+    #     if not data.get('name'):
+    #         return self._error_response('name is required', status=400)
+
+    #     item = request.env['ecis.inspection.checklist'].sudo().create({
+    #         'inspection_id': record.id,
+    #         'sequence': self._parse_int(data.get('sequence', 10), 10),
+    #         'name': data.get('name'),
+    #         'requirement': data.get('requirement'),
+    #         'status': data.get('status') or 'pass',
+    #         'notes': data.get('notes'),
+    #     })
+
+    #     return self._json_response({'success': True, 'data': self._serialize_checklist_item(item)}, status=201)
+
+    # @http.route('/api/checklist/<int:item_id>', type='http', auth='none', methods=['PUT', 'PATCH'], csrf=False, cors='*')
+    # def update_checklist_item(self, item_id, **_params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     item = request.env['ecis.inspection.checklist'].sudo().browse(item_id)
+    #     if not item.exists():
+    #         return self._error_response('Checklist item not found', status=404)
+
+    #     data = self._get_payload()
+    #     allowed_fields = {'sequence', 'name', 'requirement', 'status', 'notes'}
+    #     vals = {field: data.get(field) for field in allowed_fields if field in data}
+    #     if vals:
+    #         item.write(vals)
+
+    #     return self._json_response({'success': True, 'data': self._serialize_checklist_item(item)})
+
+    # @http.route('/api/checklist/<int:item_id>', type='http', auth='none', methods=['DELETE'], csrf=False, cors='*')
+    # def delete_checklist_item(self, item_id, **_params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     item = request.env['ecis.inspection.checklist'].sudo().browse(item_id)
+    #     if not item.exists():
+    #         return self._error_response('Checklist item not found', status=404)
+
+    #     item.unlink()
+    #     return self._json_response({'success': True})
+
+    # @http.route('/api/equipment', type='http', auth='none', methods=['GET'], csrf=False, cors='*')
+    # def list_equipment(self, **params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     limit = self._parse_int(params.get('limit', 50), 50)
+    #     offset = self._parse_int(params.get('offset', 0), 0)
+
+    #     records = request.env['ecis.equipment'].sudo().search([], limit=limit, offset=offset)
+    #     return self._json_response({
+    #         'success': True,
+    #         'data': [self._serialize_equipment(r) for r in records],
+    #         'count': len(records),
+    #     })
+
+    # @http.route('/api/equipment', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
+    # def create_equipment(self, **_params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     data = self._get_payload()
+    #     required = ['name', 'equipment_type', 'client_id']
+    #     missing = [f for f in required if not data.get(f)]
+    #     if missing:
+    #         return self._error_response(f'Missing required fields: {", ".join(missing)}', status=400)
+
+    #     client = request.env['res.partner'].sudo().browse(int(data.get('client_id')))
+    #     if not client.exists():
+    #         return self._error_response('Client not found', status=404)
+
+    #     try:
+    #         equipment_env = self._company_env('ecis.equipment')
+    #         company_id = self._get_company_required().id
+    #     except ValidationError as exc:
+    #         return self._error_response(str(exc), status=400)
+
+    #     equipment = equipment_env.create({
+    #         'name': data.get('name'),
+    #         'equipment_type': data.get('equipment_type'),
+    #         'client_id': client.id,
+    #         'company_id': company_id,
+    #         'brand': data.get('brand'),
+    #         'model': data.get('model'),
+    #         'serial_number': data.get('serial_number'),
+    #         'manufacture_year': data.get('manufacture_year'),
+    #         'capacity': data.get('capacity'),
+    #         'location': data.get('location'),
+    #         'notes': data.get('notes'),
+    #     })
+
+    #     return self._json_response({'success': True, 'data': self._serialize_equipment(equipment)}, status=201)
+
+    # @http.route('/api/equipment/<int:equipment_id>', type='http', auth='none', methods=['GET'], csrf=False, cors='*')
+    # def get_equipment(self, equipment_id, **_params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     record = request.env['ecis.equipment'].sudo().browse(equipment_id)
+    #     if not record.exists():
+    #         return self._error_response('Not found', status=404)
+
+    #     return self._json_response({'success': True, 'data': self._serialize_equipment(record)})
+
+    # @http.route('/api/equipment/<int:equipment_id>/schedule-inspection', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
+    # def schedule_inspection(self, equipment_id, **_params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     equipment = request.env['ecis.equipment'].sudo().browse(equipment_id)
+    #     if not equipment.exists():
+    #         return self._error_response('Equipment not found', status=404)
+
+    #     data = self._get_payload()
+    #     inspection_env = self._company_env('ecis.inspection')
+    #     inspector_id = self._get_inspector_user_id()
+    #     if not inspector_id:
+    #         return self._error_response('No inspector user available for inspection.', status=400)
+
+    #     inspection = inspection_env.create({
+    #         'equipment_id': equipment.id,
+    #         'inspection_type': data.get('inspection_type') or 'periodic',
+    #         'inspection_date': data.get('inspection_date') or fields.Date.today(),
+    #         'inspection_duration': data.get('inspection_duration'),
+    #         'weather_conditions': data.get('weather_conditions'),
+    #         'inspector_notes': data.get('inspector_notes'),
+    #         'inspector_id': inspector_id,
+    #         'company_id': inspection_env.env.company.id,
+    #     })
+
+    #     return self._json_response({'success': True, 'data': self._serialize_inspection(inspection)}, status=201)
+
+    # @http.route('/api/quote-requests', type='http', auth='none', methods=['GET'], csrf=False, cors='*')
+    # def list_quote_requests(self, **params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     limit = self._parse_int(params.get('limit', 50), 50)
+    #     offset = self._parse_int(params.get('offset', 0), 0)
+
+    #     records = request.env['ecis.quote.request'].sudo().search([], limit=limit, offset=offset)
+    #     return self._json_response({
+    #         'success': True,
+    #         'data': [self._serialize_quote_request(r) for r in records],
+    #         'count': len(records),
+    #     })
+
+    # @http.route('/api/quote-requests/<int:request_id>', type='http', auth='none', methods=['GET'], csrf=False, cors='*')
+    # def get_quote_request(self, request_id, **_params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     record = request.env['ecis.quote.request'].sudo().browse(request_id)
+    #     if not record.exists():
+    #         return self._error_response('Not found', status=404)
+
+    #     return self._json_response({'success': True, 'data': self._serialize_quote_request(record)})
+
+    # @http.route('/api/quote-requests/<int:request_id>/contact', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
+    # def contact_quote_request(self, request_id, **_params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     record = request.env['ecis.quote.request'].sudo().browse(request_id)
+    #     if not record.exists():
+    #         return self._error_response('Not found', status=404)
+
+    #     record.action_contact_client()
+    #     return self._json_response({'success': True, 'data': self._serialize_quote_request(record)})
+
+    # @http.route('/api/quote-requests/<int:request_id>/send-quote', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
+    # def send_quote_request(self, request_id, **_params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     record = request.env['ecis.quote.request'].sudo().browse(request_id)
+    #     if not record.exists():
+    #         return self._error_response('Not found', status=404)
+
+    #     record.action_send_quote()
+    #     return self._json_response({'success': True, 'data': self._serialize_quote_request(record)})
+
+    # @http.route('/api/quote-requests/<int:request_id>/convert', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
+    # def convert_quote_request(self, request_id, **_params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     record = request.env['ecis.quote.request'].sudo().browse(request_id)
+    #     if not record.exists():
+    #         return self._error_response('Not found', status=404)
+
+    #     record.action_convert_to_client()
+    #     return self._json_response({'success': True, 'data': self._serialize_quote_request(record)})
+
+    # @http.route('/api/quote-requests/<int:request_id>/lost', type='http', auth='none', methods=['POST'], csrf=False, cors='*')
+    # def lost_quote_request(self, request_id, **_params):
+    #     auth_error = self._require_api_key()
+    #     if auth_error:
+    #         return auth_error
+
+    #     record = request.env['ecis.quote.request'].sudo().browse(request_id)
+    #     if not record.exists():
+    #         return self._error_response('Not found', status=404)
+
+    #     record.action_mark_lost()
+    #     return self._json_response({'success': True, 'data': self._serialize_quote_request(record)})
